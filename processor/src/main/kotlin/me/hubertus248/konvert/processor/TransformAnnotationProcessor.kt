@@ -1,12 +1,7 @@
 package me.hubertus248.konvert.processor
 
 import com.google.auto.service.AutoService
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.TypeSpec
 import me.hubertus248.konvert.api.Transform
-import java.io.File
 import java.lang.IllegalStateException
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.Processor
@@ -17,7 +12,6 @@ import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
-import kotlin.reflect.jvm.internal.impl.load.kotlin.TypeMappingConfigurationImpl
 
 @AutoService(Processor::class)
 class TransformAnnotationProcessor : AbstractProcessor() {
@@ -54,6 +48,6 @@ class TransformAnnotationProcessor : AbstractProcessor() {
             ?.annotationClassValuesByKey(FROM_ANNOTATION_KEY)
             ?.map { it.value as TypeMirror }
             ?.map { it.asTypeElement(processingEnv) }
-            ?.forEach { CodeGenerator.generate(it, element, pack, kaptKotlinGeneratedDir) }
+            ?.forEach { KonverterBuilder.generate(it, element, pack, kaptKotlinGeneratedDir) }
     }
 }
