@@ -1,10 +1,9 @@
 package me.hubertus248.konvert.processor.codegen
 
 import com.squareup.kotlinpoet.*
-import me.hubertus248.konvert.processor.KotlinClass
-import me.hubertus248.konvert.processor.KotlinProperty
-import me.hubertus248.konvert.processor.isNullable
-import me.hubertus248.konvert.processor.typeName
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.metadata.KotlinPoetMetadataPreview
+import me.hubertus248.konvert.processor.*
 import kotlin.properties.Delegates
 
 class BuilderGenerator(
@@ -15,16 +14,105 @@ class BuilderGenerator(
     private val commonProperties: List<KotlinProperty>,
     private val missingProperties: List<KotlinProperty>
 ) {
-    fun build(): TypeSpec {
-        val classBuilder = TypeSpec.classBuilder(fileName)
-            .addModifiers(KModifier.SEALED)
-            .generateBuilderConstructor()
-            .generateSourceProperty()
-            .generateCommonProperties()
-            .generateMissingPropertyInterfaces()
-            .generateImpl()
-        return classBuilder.build()
+
+    private val builderClassName = ClassName(packageName, fileName)
+
+    @OptIn(KotlinPoetMetadataPreview::class)
+    fun qwe(){
     }
+
+    fun generateBuilder(): TypeSpec = TypeSpec.classBuilder(fileName)
+        .addModifiers(KModifier.SEALED)
+        .generateBuilderConstructor()
+        .generateSourceProperty()
+        .generateCommonProperties()
+        .generateMissingPropertyInterfaces()
+        .generateImpl()
+        .generateCompanionObject()
+        .build()
+
+    fun generateBuildFunction() = FunSpec.builder("build")
+        .addTypeVariable(
+            TypeVariableName(
+                "S",
+                builderClassName,
+                *missingProperties.map { property ->
+                    ClassName(packageName, "${fileName}.${getMissingPropertyInterfaceName(property)}")
+                }.toTypedArray()
+            )
+        )
+        .receiver(TypeVariableName("S"))
+        .returns(target.kotlinClass.className())
+        .apply {
+            val args = (commonProperties + missingProperties).joinToString(separator = ",\n    ") { property ->
+                "${property.name} = ${property.name}"
+            }
+            addCode(CodeBlock.of("return %T(\n    $args)", target.kotlinClass.className()))
+        }
+        .build()
+
+    fun generateMissingPropertyExtensions(): List<FunSpec> = missingProperties.map { property ->
+        FunSpec.builder(property.name)
+            .receiver(builderClassName)
+            .addAnnotation(
+                AnnotationSpec.builder(ClassName("kotlin", "OptIn"))
+                    .addMember(CodeBlock.of("%T::class", ClassName("kotlin.contracts", "ExperimentalContracts")))
+                    .build()
+            )
+            .addParameter(property.name, property.type.typeName())
+            .addCode(
+                CodeBlock.of(
+                    """
+                %M {
+                    returns() implies (this@${property.name} is $fileName.${getMissingPropertyInterfaceName(property)})
+                }
+                (this as $fileName.${getMissingPropertyInterfaceName(property)}).${property.name} = ${property.name}
+                
+            """.trimIndent(), MemberName("kotlin.contracts", "contract")
+                )
+            )
+            .build()
+    }
+
+    fun generateKonvertFunction(sourceProperties: List<KotlinProperty>) = FunSpec.builder("konvert")
+        .receiver(source.kotlinClass.className())
+        .returns(target.kotlinClass.className())
+        .addParameter(
+            ParameterSpec.builder(
+                "target",
+                ClassName("kotlin.reflect", "KClass").parameterizedBy(target.kotlinClass.className())
+            )
+                .defaultValue(CodeBlock.of("%T::class", target.kotlinClass.className()))
+                .build()
+        )
+        .addParameter(
+            ParameterSpec.builder(
+                "block",
+                LambdaTypeName.get(builderClassName, returnType = target.kotlinClass.className())
+            )
+                .apply {
+                    if (missingProperties.isEmpty()) {
+                        defaultValue(CodeBlock.of("{ build() }"))
+                    }
+                }
+                .build()
+        )
+        .apply {
+            val args = commonProperties.joinToString(separator = ",\n${indent(2)}") { property ->
+                if (sourceProperties.find { it.name == property.name } != null) {
+                    "_${property.name} = ${property.name}"
+                } else {
+                    "_${property.name} = null"
+                }
+            }
+            addCode(
+                CodeBlock.of(
+                    "return %T(\n${indent(2)}_source = this,\n${indent(2)}$args\n${indent()}).block()",
+                    builderClassName
+                )
+            )
+        }
+        .build()
 
     private fun TypeSpec.Builder.generateBuilderConstructor() = primaryConstructor(
         FunSpec.constructorBuilder()
@@ -49,7 +137,7 @@ class BuilderGenerator(
     private fun TypeSpec.Builder.generateCommonProperties() = addProperties(commonProperties.map { property ->
         PropertySpec.builder(property.name, property.type.typeName())
             .mutable(true)
-            .setter(
+            .setter(//TODO simplify setter
                 FunSpec.builder("set()")
                     .addModifiers(KModifier.PRIVATE)
                     .addParameter(ParameterSpec.builder("value", property.type.typeName()).build())
@@ -79,7 +167,7 @@ class BuilderGenerator(
     private fun TypeSpec.Builder.generateImpl() = addType(
         TypeSpec.classBuilder("Impl")
             .addModifiers(KModifier.PRIVATE)
-            .superclass(ClassName(packageName, fileName))
+            .superclass(builderClassName)
             .addSuperinterfaces(missingProperties.map { property ->
                 ClassName(packageName, "$fileName.${getMissingPropertyInterfaceName(property)}")
             })
@@ -88,14 +176,10 @@ class BuilderGenerator(
                     .addParameter(getSourceParameter())
                     .addParameters(getConstructorParams())
                     .build()
-            ).addSuperclassConstructorParameter(StringBuilder().apply {
-                append("_source = _source, ")
-                commonProperties.map { property ->
-                    append("_${property.name} = _${property.name}, ")
-                }
-            }.toString())
+            ).addSuperclassConstructorParameter(getConstructorParamsInvocation())
             .addProperties(missingProperties.map { property ->
-                PropertySpec.varBuilder(property.name, property.type.typeName(), KModifier.OVERRIDE)
+                PropertySpec.builder(property.name, property.type.typeName(), KModifier.OVERRIDE)
+                    .mutable(true)
                     .apply {
                         if (property.type.isNullable()) {
                             initializer("null")
@@ -108,15 +192,35 @@ class BuilderGenerator(
             .build()
     )
 
+    private fun TypeSpec.Builder.generateCompanionObject() = addType(
+        TypeSpec.companionObjectBuilder()
+            .addFunction(
+                FunSpec.builder("invoke")
+                    .addModifiers(KModifier.OPERATOR)
+                    .addParameter(getSourceParameter())
+                    .addParameters(getConstructorParams())
+                    .returns(builderClassName)
+                    .addCode(CodeBlock.of("return Impl(${getConstructorParamsInvocation()})\n"))
+                    .build()
+            )
+            .build()
+    )
 
     private fun getMissingPropertyInterfaceName(property: KotlinProperty): String = "Has${property.name.capitalize()}"
 
     private fun getSourceParameter() = ParameterSpec
-        .builder("_source", source.element.asType().asTypeName())
+        .builder("_source", source.kotlinClass.className())
         .build()
 
     private fun getConstructorParams() =
         commonProperties.map { ParameterSpec.builder("_${it.name}", it.type.typeName()).build() }
 
+    private fun getConstructorParamsInvocation() = StringBuilder().apply {
+        append("_source = _source, ")
+        commonProperties.map { property ->
+            append("_${property.name} = _${property.name}, ")
+        }
+    }.toString()
 
+    private fun indent(i: Int = 1) = "    ".repeat(i)
 }

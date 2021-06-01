@@ -17,7 +17,9 @@ repositories {
 
 dependencies {
     implementation(project(":api"))
-    implementation("com.squareup:kotlinpoet:0.7.0")
+    implementation("com.squareup:kotlinpoet:1.8.0")
+    implementation("com.squareup:kotlinpoet-metadata:1.8.0")
+    implementation("com.squareup:kotlinpoet-metadata-specs:1.8.0")
     implementation("com.google.auto.service:auto-service:1.0-rc4")
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.3.0")

@@ -47,11 +47,17 @@ object CodeGenerator {
             }
         }
 
-        val builderClass = BuilderGenerator(pack, fileName, source, target, commonProperties, missingProperties)
-            .build()
+        val generator = BuilderGenerator(pack, fileName, source, target, commonProperties, missingProperties)
 
-        val file = fileBuilder.addType(builderClass).build()
-        file.writeTo(File(generatedDir))
+        fileBuilder
+            .addType(generator.generateBuilder())
+
+        generator.generateMissingPropertyExtensions().forEach { fileBuilder.addFunction(it) }
+
+        fileBuilder.addFunction(generator.generateBuildFunction())
+            .addFunction(generator.generateKonvertFunction(sourceProperties))
+            .build()
+        fileBuilder.build().writeTo(File(generatedDir))
     }
 
     private fun generateBuildFunction(): FunSpec {
@@ -60,13 +66,4 @@ object CodeGenerator {
 
     private fun generateTransformFunction(): FunSpec = TODO()
 
-//    private fun generateBuilderClass(
-//        fileName: String,
-//        source: KotlinClass,
-//        target: KotlinClass,
-//        commonProperties: List<KotlinProperty>,
-//        missingProperties: List<KotlinProperty>
-//    ): TypeSpec {
-//
-//    }
 }

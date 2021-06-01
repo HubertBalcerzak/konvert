@@ -1,23 +1,27 @@
 package me.hubertus248.konvert.processor
 
-import com.squareup.kotlinpoet.*
-import kotlinx.metadata.Flag
-import kotlinx.metadata.KmClassifier
-import kotlinx.metadata.KmType
-import kotlinx.metadata.KmTypeProjection
+import com.squareup.kotlinpoet.ANY
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.metadata.KotlinPoetMetadataPreview
+import com.squareup.kotlinpoet.metadata.specs.internal.ClassInspectorUtil
+import kotlinx.metadata.*
 
+@OptIn(KotlinPoetMetadataPreview::class)
 fun KmType.typeName(): TypeName {
     //TODO support abbreviated types
-    val rawType = ClassName.bestGuess(
-        (classifier as KmClassifier.Class).name
-            .replace("/", ".")
-    ).let { if (isNullable()) it.asNullable() else it }
+    val rawType: ClassName = ClassInspectorUtil.createClassName((classifier as KmClassifier.Class).name)
+        .let { if (isNullable()) it.copy(nullable = true) else it } as ClassName
 
     return if (arguments.isEmpty()) rawType
-    else ParameterizedTypeName.get(rawType, *arguments.map { projection ->
-        projection.type?.typeName() ?: WildcardTypeName.subtypeOf(ANY.asNullable())
-    }.toTypedArray())
+    else rawType.parameterizedBy(arguments.map { projection ->
+        projection.type?.typeName() ?: ANY.copy(nullable = true)
+    })
 }
+
+@OptIn(KotlinPoetMetadataPreview::class)
+fun KmClass.className(): ClassName = ClassInspectorUtil.createClassName(name)
 
 fun KmType.isEqual(other: KmType): Boolean {
     return (classifier as KmClassifier.Class) == (other.classifier as KmClassifier.Class)
