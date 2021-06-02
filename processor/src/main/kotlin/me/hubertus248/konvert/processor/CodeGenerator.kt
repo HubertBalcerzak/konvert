@@ -5,17 +5,18 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import kotlin.properties.Delegates
 
 class CodeGenerator(
-    private val packageName: String,
-    private val fileName: String,
-    private val source: KotlinClass,
-    private val target: KotlinClass,
-    private val commonProperties: List<KotlinProperty>,
-    private val missingProperties: List<KotlinProperty>
+    private val konverter: Konverter
 ) {
 
-    private val builderClassName = ClassName(packageName, fileName)
+    private val source = konverter.source
+    private val target = konverter.target
+    private val filename = konverter.filename
+    private val missingProperties = konverter.missingProperties
+    private val commonProperties = konverter.commonProperties
 
-    fun generateBuilder(): TypeSpec = TypeSpec.classBuilder(fileName)
+    private val builderClassName = ClassName(konverter.pack, filename)
+
+    fun generateBuilder(): TypeSpec = TypeSpec.classBuilder(filename)
         .addModifiers(KModifier.SEALED)
         .generateBuilderConstructor()
         .generateSourceProperty()
@@ -31,17 +32,17 @@ class CodeGenerator(
                 "S",
                 builderClassName,
                 *missingProperties.map { property ->
-                    ClassName(packageName, "${fileName}.${getMissingPropertyInterfaceName(property)}")
+                    ClassName(konverter.pack, "${filename}.${getMissingPropertyInterfaceName(property)}")
                 }.toTypedArray()
             )
         )
         .receiver(TypeVariableName("S"))
-        .returns(target.kotlinClass.className())
+        .returns(target.className())
         .apply {
             val args = (commonProperties + missingProperties).joinToString(separator = ",\n    ") { property ->
                 "${property.name} = ${property.name}"
             }
-            addCode(CodeBlock.of("return %T(\n    $args)", target.kotlinClass.className()))
+            addCode(CodeBlock.of("return %T(\n    $args)", target.className()))
         }
         .build()
 
@@ -58,9 +59,9 @@ class CodeGenerator(
                 CodeBlock.of(
                     """
                 %M {
-                    returns() implies (this@${property.name} is $fileName.${getMissingPropertyInterfaceName(property)})
+                    returns() implies (this@${property.name} is ${filename}.${getMissingPropertyInterfaceName(property)})
                 }
-                (this as $fileName.${getMissingPropertyInterfaceName(property)}).${property.name} = ${property.name}
+                (this as $filename.${getMissingPropertyInterfaceName(property)}).${property.name} = ${property.name}
                 
             """.trimIndent(), MemberName("kotlin.contracts", "contract")
                 )
@@ -68,21 +69,21 @@ class CodeGenerator(
             .build()
     }
 
-    fun generateKonvertFunction(sourceProperties: List<KotlinProperty>) = FunSpec.builder("konvert")
-        .receiver(source.kotlinClass.className())
-        .returns(target.kotlinClass.className())
+    fun generateKonvertFunction() = FunSpec.builder("konvert")
+        .receiver(source.className())
+        .returns(target.className())
         .addParameter(
             ParameterSpec.builder(
                 "target",
-                ClassName("kotlin.reflect", "KClass").parameterizedBy(target.kotlinClass.className())
+                ClassName("kotlin.reflect", "KClass").parameterizedBy(target.className())
             )
-                .defaultValue(CodeBlock.of("%T::class", target.kotlinClass.className()))
+                .defaultValue(CodeBlock.of("%T::class", target.className()))
                 .build()
         )
         .addParameter(
             ParameterSpec.builder(
                 "block",
-                LambdaTypeName.get(builderClassName, returnType = target.kotlinClass.className())
+                LambdaTypeName.get(builderClassName, returnType = target.className())
             )
                 .apply {
                     if (missingProperties.isEmpty()) {
@@ -93,7 +94,7 @@ class CodeGenerator(
         )
         .apply {
             val args = commonProperties.joinToString(separator = ",\n${indent(2)}") { property ->
-                if (sourceProperties.find { it.name == property.name } != null) {
+                if (konverter.sourceProperties.find { it.name == property.name } != null) {
                     "_${property.name} = ${property.name}"
                 } else {
                     "_${property.name} = null"
@@ -116,14 +117,14 @@ class CodeGenerator(
     )
 
     private fun TypeSpec.Builder.generateSourceProperty() = addProperty(
-        PropertySpec.builder("_source", source.element.asType().asTypeName())
+        PropertySpec.builder("_source", source.className())
             .addModifiers(KModifier.PRIVATE)
             .initializer("_source")
             .build()
     )
         .addFunction(
             FunSpec.builder("source")
-                .returns(source.element.asClassName())
+                .returns(source.className())
                 .addStatement("return _source")
                 .build()
         )
@@ -161,7 +162,7 @@ class CodeGenerator(
             .addModifiers(KModifier.PRIVATE)
             .superclass(builderClassName)
             .addSuperinterfaces(missingProperties.map { property ->
-                ClassName(packageName, "$fileName.${getMissingPropertyInterfaceName(property)}")
+                ClassName(konverter.pack, "$filename.${getMissingPropertyInterfaceName(property)}")
             })
             .primaryConstructor(
                 FunSpec.constructorBuilder()
@@ -201,7 +202,7 @@ class CodeGenerator(
     private fun getMissingPropertyInterfaceName(property: KotlinProperty): String = "Has${property.name.capitalize()}"
 
     private fun getSourceParameter() = ParameterSpec
-        .builder("_source", source.kotlinClass.className())
+        .builder("_source", source.className())
         .build()
 
     private fun getConstructorParams() =

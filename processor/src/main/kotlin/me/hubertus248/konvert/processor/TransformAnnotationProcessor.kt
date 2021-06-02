@@ -29,6 +29,9 @@ class TransformAnnotationProcessor : AbstractProcessor() {
         SourceVersion.latest()
 
     override fun process(annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment): Boolean {
+        val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
+            ?: throw IllegalStateException("$KAPT_KOTLIN_GENERATED_OPTION_NAME is missing")
+
         val elements = roundEnv.getElementsAnnotatedWith(Konvert::class.java)
 
         if (elements.any { it.kind != ElementKind.CLASS }) {
@@ -36,18 +39,18 @@ class TransformAnnotationProcessor : AbstractProcessor() {
             return true
         }
         elements.forEach(this::processAnnotation)
+
+        KonverterBuilder.generate(kaptKotlinGeneratedDir)
         return false
     }
 
     private fun processAnnotation(element: Element) {
         val pack = processingEnv.elementUtils.getPackageOf(element).toString()
-        val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
-            ?: throw IllegalStateException("$KAPT_KOTLIN_GENERATED_OPTION_NAME is missing")
 
         (element as TypeElement).annotationMirrorByType(Konvert::class.java)
             ?.annotationClassValuesByKey(FROM_ANNOTATION_KEY)
             ?.map { it.value as TypeMirror }
             ?.map { it.asTypeElement(processingEnv) }
-            ?.forEach { KonverterBuilder.generate(it, element, pack, kaptKotlinGeneratedDir) }
+            ?.forEach { KonverterBuilder.registerKonverter(it, element, pack) }
     }
 }
