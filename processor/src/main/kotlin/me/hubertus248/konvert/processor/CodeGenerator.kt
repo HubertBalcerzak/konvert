@@ -131,11 +131,9 @@ class CodeGenerator(
     private fun TypeSpec.Builder.generateCommonProperties() = addProperties(commonProperties.map { property ->
         PropertySpec.builder(property.name, property.type.typeName())
             .mutable(true)
-            .setter(//TODO simplify setter
+            .setter(
                 FunSpec.builder("set()")
                     .addModifiers(KModifier.PRIVATE)
-                    .addParameter(ParameterSpec.builder("value", property.type.typeName()).build())
-                    .addStatement("${property.name} = value")
                     .build()
             )
             .initializer("_${property.name}")

@@ -1,7 +1,7 @@
 package me.hubertus248.konvert.processor
 
 import com.google.auto.service.AutoService
-import me.hubertus248.konvert.api.Transform
+import me.hubertus248.konvert.api.Konvert
 import java.lang.IllegalStateException
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.Processor
@@ -23,13 +23,13 @@ class TransformAnnotationProcessor : AbstractProcessor() {
     }
 
     override fun getSupportedAnnotationTypes(): MutableSet<String> =
-        mutableSetOf(Transform::class.java.name)
+        mutableSetOf(Konvert::class.java.name)
 
     override fun getSupportedSourceVersion(): SourceVersion =
         SourceVersion.latest()
 
     override fun process(annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment): Boolean {
-        val elements = roundEnv.getElementsAnnotatedWith(Transform::class.java)
+        val elements = roundEnv.getElementsAnnotatedWith(Konvert::class.java)
 
         if (elements.any { it.kind != ElementKind.CLASS }) {
             processingEnv.messager.printMessage(Diagnostic.Kind.ERROR, "Only classes should be annotated")
@@ -44,7 +44,7 @@ class TransformAnnotationProcessor : AbstractProcessor() {
         val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
             ?: throw IllegalStateException("$KAPT_KOTLIN_GENERATED_OPTION_NAME is missing")
 
-        (element as TypeElement).annotationMirrorByType(Transform::class.java)
+        (element as TypeElement).annotationMirrorByType(Konvert::class.java)
             ?.annotationClassValuesByKey(FROM_ANNOTATION_KEY)
             ?.map { it.value as TypeMirror }
             ?.map { it.asTypeElement(processingEnv) }

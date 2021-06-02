@@ -28,6 +28,7 @@ object KonverterBuilder {
         val targetProperties = getTargetProperties(targetConstructor)
         val sourceProperties = getSourceProperties(source)
 
+        //TODO missing source fields should be allowed when corresponding target field is nullable
         val (commonProperties, missingProperties) = filterProperties(targetProperties, sourceProperties)
 
         val generator = CodeGenerator(pack, fileName, source, target, commonProperties, missingProperties)
