@@ -18,3 +18,8 @@ data class FooWithMissingFields(val field1: Int)
 
 @Konvert(from = [Foo::class])
 data class FooWithNullableField(val field1: Int, val field2: String?)
+
+@Konvert(from = [FooWithNestedCompatible::class])
+data class FooWithNested(val field1: Foo)
+
+data class FooWithNestedCompatible(val field1: FooCompatible)

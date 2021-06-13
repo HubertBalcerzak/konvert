@@ -2,6 +2,8 @@ package me.hubertus248.konvert.processor
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import me.hubertus248.konvert.processor.model.Konverter
+import me.hubertus248.konvert.processor.model.KotlinProperty
 import kotlin.properties.Delegates
 
 class CodeGenerator(
@@ -11,8 +13,10 @@ class CodeGenerator(
     private val source = konverter.source
     private val target = konverter.target
     private val filename = konverter.filename
-    private val missingProperties = konverter.missingProperties
+    private val missingProperties = konverter.convertibleProperties.map { it.property } + konverter.requiredProperties
     private val commonProperties = konverter.commonProperties
+    private val availableProperties = konverter.commonProperties + konverter.convertibleProperties.map { it.property }
+    private val requiredProperties = konverter.requiredProperties
 
     private val builderClassName = ClassName(konverter.pack, filename)
 
@@ -31,7 +35,7 @@ class CodeGenerator(
             TypeVariableName(
                 "S",
                 builderClassName,
-                *missingProperties.map { property ->
+                *requiredProperties.map { property ->
                     ClassName(konverter.pack, "${filename}.${getMissingPropertyInterfaceName(property)}")
                 }.toTypedArray()
             )
@@ -46,7 +50,7 @@ class CodeGenerator(
         }
         .build()
 
-    fun generateMissingPropertyExtensions(): List<FunSpec> = missingProperties.map { property ->
+    fun generateMissingPropertyExtensions(): List<FunSpec> = requiredProperties.map { property ->
         FunSpec.builder(property.name)
             .receiver(builderClassName)
             .addAnnotation(
@@ -86,7 +90,7 @@ class CodeGenerator(
                 LambdaTypeName.get(builderClassName, returnType = target.className())
             )
                 .apply {
-                    if (missingProperties.isEmpty()) {
+                    if (requiredProperties.isEmpty()) {
                         defaultValue(CodeBlock.of("{ build() }"))
                     }
                 }
@@ -99,11 +103,21 @@ class CodeGenerator(
                 } else {
                     "_${property.name} = null"
                 }
+            } + konverter.convertibleProperties.joinToString(separator = ",\n${indent(2)}") { property ->
+                "_${property.property.name} = ${property.property.name}.%M(%T::class)"
             }
             addCode(
                 CodeBlock.of(
                     "return %T(\n${indent(2)}_source = this,\n${indent(2)}$args\n${indent()}).block()",
-                    builderClassName
+                    builderClassName,
+                    *konverter.convertibleProperties
+                        .map {
+                            listOf(
+                                MemberName(it.konverter.pack, "konvert"),
+                                it.property.type.typeName()
+                            )
+                        }.flatten()
+                        .toTypedArray()
                 )
             )
         }
@@ -129,7 +143,7 @@ class CodeGenerator(
                 .build()
         )
 
-    private fun TypeSpec.Builder.generateCommonProperties() = addProperties(commonProperties.map { property ->
+    private fun TypeSpec.Builder.generateCommonProperties() = addProperties(availableProperties.map { property ->
         PropertySpec.builder(property.name, property.type.typeName())
             .mutable(true)
             .setter(
@@ -140,14 +154,14 @@ class CodeGenerator(
             .initializer("_${property.name}")
             .build()
     })
-        .addFunctions(commonProperties.map { property ->
+        .addFunctions(availableProperties.map { property ->
             FunSpec.builder(property.name)
                 .addParameter(property.name, property.type.typeName())
                 .addStatement("this.${property.name} = ${property.name}")
                 .build()
         })
 
-    private fun TypeSpec.Builder.generateMissingPropertyInterfaces() = addTypes(missingProperties.map { property ->
+    private fun TypeSpec.Builder.generateMissingPropertyInterfaces() = addTypes(requiredProperties.map { property ->
         TypeSpec.interfaceBuilder(getMissingPropertyInterfaceName(property))
             .addProperty(
                 PropertySpec.builder(property.name, property.type.typeName())
@@ -161,7 +175,7 @@ class CodeGenerator(
         TypeSpec.classBuilder("Impl")
             .addModifiers(KModifier.PRIVATE)
             .superclass(builderClassName)
-            .addSuperinterfaces(missingProperties.map { property ->
+            .addSuperinterfaces(requiredProperties.map { property ->
                 ClassName(konverter.pack, "$filename.${getMissingPropertyInterfaceName(property)}")
             })
             .primaryConstructor(
@@ -170,7 +184,7 @@ class CodeGenerator(
                     .addParameters(getConstructorParams())
                     .build()
             ).addSuperclassConstructorParameter(getConstructorParamsInvocation())
-            .addProperties(missingProperties.map { property ->
+            .addProperties(requiredProperties.map { property ->
                 PropertySpec.builder(property.name, property.type.typeName(), KModifier.OVERRIDE)
                     .mutable(true)
                     .apply {
@@ -206,11 +220,11 @@ class CodeGenerator(
         .build()
 
     private fun getConstructorParams() =
-        commonProperties.map { ParameterSpec.builder("_${it.name}", it.type.typeName()).build() }
+        availableProperties.map { ParameterSpec.builder("_${it.name}", it.type.typeName()).build() }
 
     private fun getConstructorParamsInvocation() = StringBuilder().apply {
         append("_source = _source, ")
-        commonProperties.map { property ->
+        availableProperties.map { property ->
             append("_${property.name} = _${property.name}, ")
         }
     }.toString()

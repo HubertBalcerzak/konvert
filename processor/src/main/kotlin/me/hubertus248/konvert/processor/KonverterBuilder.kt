@@ -3,13 +3,19 @@ package me.hubertus248.konvert.processor
 import com.squareup.kotlinpoet.*
 import kotlinx.metadata.Flag
 import kotlinx.metadata.KmClass
+import kotlinx.metadata.KmClassifier
 import kotlinx.metadata.KmConstructor
+import me.hubertus248.konvert.processor.model.Filename
+import me.hubertus248.konvert.processor.model.Key
+import me.hubertus248.konvert.processor.model.KonverterDefinition
+import me.hubertus248.konvert.processor.model.KotlinProperty
+import me.hubertus248.konvert.processor.tree.KonverterTree
 import java.io.File
 import javax.lang.model.element.*
 
 object KonverterBuilder {
 
-    private val konverters: MutableMap<Key, Konverter> = mutableMapOf()
+    private val konverters: MutableMap<Key, KonverterDefinition> = mutableMapOf()
 
     fun registerKonverter(sourceElement: TypeElement, targetElement: TypeElement, pack: String) {
         val source = sourceElement.kmClass()
@@ -27,43 +33,56 @@ object KonverterBuilder {
         //TODO missing source fields should be allowed when corresponding target field is nullable
         val (commonProperties, missingProperties) = filterProperties(targetProperties, sourceProperties)
 
-        konverters[Key(source, target)] =
-            Konverter(source, target, filename, sourceProperties, commonProperties, missingProperties, pack, false)
+        val key = Key(source.name, target.name)
+        konverters[key] =
+            KonverterDefinition(
+                key,
+                source,
+                target,
+                filename,
+                sourceProperties,
+                commonProperties,
+                missingProperties,
+                pack,
+                pure = missingProperties.isEmpty()
+            )
     }
 
     fun generate(generatedDir: String) {
 
-        konverters.values.forEach { konverter ->
-            val fileBuilder = FileSpec.builder(konverter.pack, konverter.filename)
-            val generator = CodeGenerator(konverter)
+        KonverterTree.create(konverters)
+            .getKonverters()
+            .forEach { konverter ->
+                val fileBuilder = FileSpec.builder(konverter.pack, konverter.filename)
+                val generator = CodeGenerator(konverter)
 
-            fileBuilder
-                .addType(generator.generateBuilder())
+                fileBuilder
+                    .addType(generator.generateBuilder())
 
-            generator.generateMissingPropertyExtensions().forEach { fileBuilder.addFunction(it) }
+                generator.generateMissingPropertyExtensions().forEach { fileBuilder.addFunction(it) }
 
-            fileBuilder.addFunction(generator.generateBuildFunction())
-                .addFunction(generator.generateKonvertFunction())
-                .build()
-            fileBuilder.build().writeTo(File(generatedDir))
-        }
+                fileBuilder.addFunction(generator.generateBuildFunction())
+                    .addFunction(generator.generateKonvertFunction())
+                    .build()
+                fileBuilder.build().writeTo(File(generatedDir))
 
+            }
     }
 
     private fun getTargetProperties(targetConstructor: KmConstructor) = targetConstructor.valueParameters
         .filter { it.type != null }
-        .map { KotlinProperty(it.name, it.type!!) }
+        .map { KotlinProperty(it.name, it.type!!) }.toSet()
 
     private fun getSourceProperties(source: KmClass) = source.properties
         .filter { Flag.Property.HAS_GETTER(it.flags) }
-        .map { KotlinProperty(it.name, it.returnType) }
+        .map { KotlinProperty(it.name, it.returnType) }.toSet()
 
     private fun filterProperties(
-        targetProperties: List<KotlinProperty>,
-        sourceProperties: List<KotlinProperty>
-    ): Pair<List<KotlinProperty>, List<KotlinProperty>> {
-        val commonProperties = mutableListOf<KotlinProperty>()
-        val missingProperties = mutableListOf<KotlinProperty>()
+        targetProperties: Set<KotlinProperty>,
+        sourceProperties: Set<KotlinProperty>
+    ): Pair<Set<KotlinProperty>, Set<KotlinProperty>> {
+        val commonProperties = mutableSetOf<KotlinProperty>()
+        val missingProperties = mutableSetOf<KotlinProperty>()
 
         targetProperties.forEach { targetProperty ->
 

@@ -77,4 +77,13 @@ class KonvertTest {
         assertEquals(source.field1, result.field1)
         assertEquals(source.field2, result.field2)
     }
+
+    @Test
+    fun `should convert nested properties`() {
+        val source = FooWithNestedCompatible(FooCompatible(123, "qwe"))
+
+        val result: FooWithNested = source.konvert(FooWithNested::class)
+
+        assertEquals(source.field1.field1, result.field1.field1)
+    }
 }
