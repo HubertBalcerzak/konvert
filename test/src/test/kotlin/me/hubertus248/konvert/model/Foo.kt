@@ -23,3 +23,8 @@ data class FooWithNullableField(val field1: Int, val field2: String?)
 data class FooWithNested(val field1: Foo)
 
 data class FooWithNestedCompatible(val field1: FooCompatible)
+
+@Konvert(from = [FooWithCollectionCompatible::class])
+data class FooWithCollection(val field1: Set<Foo>)
+
+data class FooWithCollectionCompatible(val field1: List<FooCompatible>)

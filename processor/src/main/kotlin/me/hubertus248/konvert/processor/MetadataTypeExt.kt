@@ -8,6 +8,13 @@ import com.squareup.kotlinpoet.metadata.KotlinPoetMetadataPreview
 import com.squareup.kotlinpoet.metadata.specs.internal.ClassInspectorUtil
 import kotlinx.metadata.*
 
+fun KmType.canonicalNameMapped(): String = (classifier as KmClassifier.Class).name
+    .replace("/", ".")
+    .let { TypeMap.TYPES[it] ?: it }
+
+fun KmType.canonicalName(): String = (classifier as KmClassifier.Class).name
+    .replace("/", ".")
+
 @OptIn(KotlinPoetMetadataPreview::class)
 fun KmType.typeName(): TypeName {
     //TODO support abbreviated types

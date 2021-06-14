@@ -2,7 +2,6 @@ package me.hubertus248.konvert.processor
 
 import com.google.auto.service.AutoService
 import me.hubertus248.konvert.api.Konvert
-import java.lang.IllegalStateException
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.Processor
 import javax.annotation.processing.RoundEnvironment
@@ -14,7 +13,7 @@ import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
 
 @AutoService(Processor::class)
-class TransformAnnotationProcessor : AbstractProcessor() {
+class KonvertAnnotationProcessor : AbstractProcessor() {
 
     companion object {
         const val KAPT_KOTLIN_GENERATED_OPTION_NAME = "kapt.kotlin.generated"
@@ -40,7 +39,7 @@ class TransformAnnotationProcessor : AbstractProcessor() {
         }
         elements.forEach(this::processAnnotation)
 
-        KonverterBuilder.generate(kaptKotlinGeneratedDir)
+        KonverterBuilder.generate(kaptKotlinGeneratedDir, processingEnv)
         return false
     }
 

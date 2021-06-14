@@ -11,11 +11,12 @@ import me.hubertus248.konvert.processor.model.KonverterDefinition
 import me.hubertus248.konvert.processor.model.KotlinProperty
 import me.hubertus248.konvert.processor.tree.KonverterTree
 import java.io.File
+import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.*
 
 object KonverterBuilder {
 
-    private val konverters: MutableMap<Key, KonverterDefinition> = mutableMapOf()
+    private val konverters: MutableMap<Key, KonverterDefinition.Generated> = mutableMapOf()
 
     fun registerKonverter(sourceElement: TypeElement, targetElement: TypeElement, pack: String) {
         val source = sourceElement.kmClass()
@@ -35,7 +36,7 @@ object KonverterBuilder {
 
         val key = Key(source.name, target.name)
         konverters[key] =
-            KonverterDefinition(
+            KonverterDefinition.Generated(
                 key,
                 source,
                 target,
@@ -48,9 +49,9 @@ object KonverterBuilder {
             )
     }
 
-    fun generate(generatedDir: String) {
+    fun generate(generatedDir: String, processingEnv: ProcessingEnvironment) {
 
-        KonverterTree.create(konverters)
+        KonverterTree.create(konverters, processingEnv)
             .getKonverters()
             .forEach { konverter ->
                 val fileBuilder = FileSpec.builder(konverter.pack, konverter.filename)

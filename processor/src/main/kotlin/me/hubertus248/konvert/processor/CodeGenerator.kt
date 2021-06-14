@@ -104,19 +104,14 @@ class CodeGenerator(
                     "_${property.name} = null"
                 }
             } + konverter.convertibleProperties.joinToString(separator = ",\n${indent(2)}") { property ->
-                "_${property.property.name} = ${property.property.name}.%M(%T::class)"
+                "_${property.property.name} = %L"
             }
             addCode(
                 CodeBlock.of(
                     "return %T(\n${indent(2)}_source = this,\n${indent(2)}$args\n${indent()}).block()",
                     builderClassName,
                     *konverter.convertibleProperties
-                        .map {
-                            listOf(
-                                MemberName(it.konverter.pack, "konvert"),
-                                it.property.type.typeName()
-                            )
-                        }.flatten()
+                        .map { it.getBlock() }
                         .toTypedArray()
                 )
             )

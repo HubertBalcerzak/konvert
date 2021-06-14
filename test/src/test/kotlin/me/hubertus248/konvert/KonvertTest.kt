@@ -86,4 +86,15 @@ class KonvertTest {
 
         assertEquals(source.field1.field1, result.field1.field1)
     }
+
+    @Test
+    fun `should convert collections`() {
+        val source = FooWithCollectionCompatible(listOf(FooCompatible(123, "qwe"), FooCompatible(456, "asd")))
+
+        val result: FooWithCollection = source.konvert(FooWithCollection::class)
+
+        assertEquals(source.field1.size, result.field1.size)
+        source.field1.zip(result.field1)
+            .forEach { (sourceElement, resultElement) -> assertEquals(sourceElement.field1, resultElement.field1) }
+    }
 }
