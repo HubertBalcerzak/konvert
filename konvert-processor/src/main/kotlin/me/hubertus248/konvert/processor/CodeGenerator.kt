@@ -97,18 +97,18 @@ class CodeGenerator(
                 .build()
         )
         .apply {
-            val args = commonProperties.joinToString(separator = ",\n${indent(2)}") { property ->
+            val args = commonProperties.joinToString(separator = "") { property ->
                 if (konverter.sourceProperties.find { it.name == property.name } != null) {
-                    "_${property.name} = ${property.name}"
+                    "\n${indent(2)}_${property.name} = ${property.name},"
                 } else {
-                    "_${property.name} = null"
+                    "\n${indent(2)}_${property.name} = null,"
                 }
-            } + konverter.convertibleProperties.joinToString(separator = ",\n${indent(2)}") { property ->
-                "_${property.property.name} = %L"
+            } + konverter.convertibleProperties.joinToString { property ->
+                "\n${indent(2)}_${property.property.name} = %L,"
             }
             addCode(
                 CodeBlock.of(
-                    "return %T(\n${indent(2)}_source = this,\n${indent(2)}$args\n${indent()}).block()",
+                    "return %T(\n${indent(2)}_source = this,$args\n${indent()}).block()",
                     builderClassName,
                     *konverter.convertibleProperties
                         .map { it.getBlock() }
