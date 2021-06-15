@@ -24,7 +24,7 @@ val userView = UserView(
 )
 ```
 
-While this approach works, it cretes a lot of boilerplate code. Konvert tries to address that by providing generated `konvert()` methods.
+While this approach works, it creates a lot of boilerplate code. Konvert tries to address that by providing generated `konvert()` methods.
 
 ```kotlin
 val userView = user.konvert {
@@ -87,7 +87,7 @@ fun main() {
 }
 ```
 
-Ommiting any non-nullable properties from target class will result in a compilation error.
+Omitting any non-nullable properties from target class will result in a compilation error.
 
 ```kotlin
 val f: F = e.konvert(F::class) { build() } //compilation error
