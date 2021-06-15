@@ -1,7 +1,7 @@
 # Konvert
 
 ![](https://github.com/HubertBalcerzak/Konvert/actions/workflows/CI.yml/badge.svg?branch=master)
-[![Release](https://jitpack.io/v/HubertBalcerzak/Konvert.svg)](https://jitpack.io/#HubertBalcerzak/Konvert)
+[![](https://jitpack.io/v/HubertBalcerzak/Konvert.svg)](https://jitpack.io/#HubertBalcerzak/Konvert)
 
 Kotlin library for boilerplate-free data transformations.
 
