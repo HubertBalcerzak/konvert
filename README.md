@@ -44,7 +44,7 @@ repositories {
 
 dependencies {
     implementation("com.github.HubertBalcerzak.konvert:konvert-api:0.1")
-    kapt("com.github.HubertBalcerzak.Konvert:konvert-processor:0.1")
+    kapt("com.github.HubertBalcerzak.konvert:konvert-processor:0.1")
     ...
 }
 ```
