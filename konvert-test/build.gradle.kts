@@ -9,12 +9,13 @@ group = "me.hubertus248"
 version = "1.0-SNAPSHOT"
 
 repositories {
+    maven("https://jitpack.io")
     mavenCentral()
 }
 
 dependencies {
-    implementation(project(":api"))
-    kaptTest(project(":processor"))
+    implementation(project(":konvert-api"))
+    kaptTest(project(":konvert-processor"))
     testImplementation(kotlin("test-junit5"))
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.0")

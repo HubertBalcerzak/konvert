@@ -1,5 +1,5 @@
-rootProject.name = "konvert"
+rootProject.name = "Konvert"
 
-include("processor")
-include("api")
-include("test")
+include("konvert-processor")
+include("konvert-api")
+include("konvert-test")

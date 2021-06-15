@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":api"))
+    implementation(project(":konvert-api"))
     implementation("com.squareup:kotlinpoet:1.8.0")
     implementation("com.squareup:kotlinpoet-metadata:1.8.0")
     implementation("com.squareup:kotlinpoet-metadata-specs:1.8.0")

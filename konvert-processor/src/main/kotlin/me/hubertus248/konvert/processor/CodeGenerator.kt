@@ -208,7 +208,8 @@ class CodeGenerator(
             .build()
     )
 
-    private fun getMissingPropertyInterfaceName(property: KotlinProperty): String = "Has${property.name.capitalize()}"
+    private fun getMissingPropertyInterfaceName(property: KotlinProperty): String =
+        "Has${property.name.replaceFirstChar { it.uppercaseChar() }}"
 
     private fun getSourceParameter() = ParameterSpec
         .builder("_source", source.className())
