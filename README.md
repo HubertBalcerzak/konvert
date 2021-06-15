@@ -1,7 +1,7 @@
 # Konvert
 
-![](https://github.com/HubertBalcerzak/Konvert/actions/workflows/CI.yml/badge.svg?branch=master)
-[![](https://jitpack.io/v/HubertBalcerzak/Konvert.svg)](https://jitpack.io/#HubertBalcerzak/Konvert)
+![](https://github.com/HubertBalcerzak/konvert/actions/workflows/CI.yml/badge.svg?branch=master)
+[![](https://jitpack.io/v/HubertBalcerzak/konvert.svg)](https://jitpack.io/#HubertBalcerzak/konvert)
 
 Kotlin library for boilerplate-free data transformations.
 
@@ -43,7 +43,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.HubertBalcerzak.Konvert:konvert-api:0.1")
+    implementation("com.github.HubertBalcerzak.konvert:konvert-api:0.1")
     kapt("com.github.HubertBalcerzak.Konvert:konvert-processor:0.1")
     ...
 }
